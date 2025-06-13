@@ -1,0 +1,91 @@
+---
+title: 'Web Scraping Project: WTA Elo Ratings | Elena J. Muñoz'
+output:
+  html_document: default
+---
+
+## Project Summary
+
+This project aims to demonstrate how to perform **Web Scraping in R** to extract **WTA (Women's Tennis Association) Elo rating data** from the site [Wheeloratings.com](https://www.wheeloratings.com/tennis_wta_ratings.html).\
+The page displays data in an interactive table powered by `reactable.js`, so the values are not in a traditional HTML `<table>`, but embedded as a JSON object within a `<script>` element.
+
+We will use the `rvest`, `jsonlite`, and `dplyr` packages to extract, convert, and visualize the data.
+
+------------------------------------------------------------------------
+
+## Step-by-step
+
+```{r setup, include=FALSE}
+# Load required packages
+library(rvest)     # For reading and parsing HTML content
+library(jsonlite)  # For interpreting and converting JSON into R objects
+library(dplyr)     # For data manipulation
+library(ggplot2)
+```
+
+```{r}
+# Define the URL of the target web page
+url <- "https://www.wheeloratings.com/tennis_wta_ratings.html"
+
+# Read the HTML content of the page
+page <- read_html(url)
+```
+
+```{r}
+# Find the 'data-for' attribute of the <script> element that contains the JSON
+# This identifies the widget containing the Elo ratings table
+json_id <- page %>%
+  html_elements("script[type='application/json']") %>%
+  html_attr("data-for") %>%
+  na.omit() %>%
+  .[1]  # Select the first one, which contains the Elo table
+```
+
+```{r}
+# Extract the JSON text from the relevant <script> block
+json_text <- page %>%
+  html_elements(paste0("script[data-for='", json_id, "']")) %>%
+  html_text()
+
+# Parse the JSON string into an R object
+json_data <- fromJSON(json_text)
+
+# Extract the data and convert it to a data.frame
+elo_data <- as.data.frame(json_data$x$tag$attribs$data)
+```
+
+
+## Full WTA Elo Ratings Table
+
+The following table presents the Elo ratings extracted directly from the website. It includes the Elo rank, player name, recent rank change, country, age, and surface-specific Elo scores.
+
+```{r}
+knitr::kable(elo_data, format = "html", table.attr = 'class="table table-striped"')
+```
+
+## Top 10 WTA Players by Elo Rating
+Let's create a bar plot of the top 10 WTA players based on their overall Elo rating.
+
+```{r}
+# Select top 10 players by Elo rating
+top10 <- elo_data %>%
+  arrange(desc(elo)) %>%
+  slice(1:10)
+
+# Bar plot
+ggplot(top10, aes(x = reorder(player_name, elo), y = elo)) +
+  geom_col(fill = "#6a1b9a") +
+  coord_flip() +
+  labs(title = "Top 10 WTA Players by Elo Rating",
+       x = "Player",
+       y = "Elo Rating") +
+  theme_minimal() +
+  theme(text = element_text(size = 12))
+```
+
+
+
+
+  📫 Contact
+
+📧 Email: elenamunoz412@gmail.com
